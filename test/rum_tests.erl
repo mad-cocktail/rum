@@ -61,7 +61,7 @@ after_example7(_X) ->
     false.
 
 
-included() ->
+nested() ->
     X = #rec{f1 = f1x, f2 = f2x},
     Y = #rec{f1 = f1y, f2 = f2y},
     %% `old()' is `f1y' (the value of the record Y, but not X), 
@@ -69,11 +69,16 @@ included() ->
     X#rec{f1 = Y#rec{f2 = old()}}.
     
 
-included2() ->
+nested2() ->
     X = #rec{f1 = f1x, f2 = f2x},
     Y = #rec{f1 = f1y, f2 = f2y},
     %% Get the old value of the record X.
     X#rec{f1 = Y#rec{f2 = old(X)}}.
+
+
+update_with_fun() ->
+    X = #rec{f1 = f1x, f2 = f2x},
+    X#rec{f1 = atom_to_list(old()), f2 = atom_to_list(old())}.
 
 
 -include_lib("eunit/include/eunit.hrl").
@@ -91,8 +96,14 @@ compare_test_() ->
     , ?_assertEqual(before_example7(X), after_example7(X))
     ].
 
-included_test_() ->
-    [ ?_assertEqual(included(),  #rec{f1 = #rec{f1 = f1y, f2 = f2y}, f2 = f2x})
-    , ?_assertEqual(included2(), #rec{f1 = #rec{f1 = f1y, f2 = f1x}, f2 = f2x})].
+
+nested_test_() ->
+    [ ?_assertEqual(nested(),  #rec{f1 = #rec{f1 = f1y, f2 = f2y}, f2 = f2x})
+    , ?_assertEqual(nested2(), #rec{f1 = #rec{f1 = f1y, f2 = f1x}, f2 = f2x})].
+
+
+update_with_fun_test_() ->
+    [ ?_assertEqual(update_with_fun(),  #rec{f1 = "f1x", f2 = "f2x"})
+    ].
 
 -endif.
