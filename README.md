@@ -20,31 +20,33 @@ Guards
 * `default(RecordIndex) -> term().`
 
     ```erlang
-    -record(pet, {head = cat, tail = octo}).
+    > -record(pet, {head = cat, tail = octo}).
 
-    default(#pet.head) is cat.
-    Dog = #pet{head = dog, tail = dog}.
+    > default(#pet.head).
+    cat.
     ```
 * `is_default(RecordAccess) -> boolean().` 
 
     ```erlang
-    is_default(Dog#pet.head) is false.
+    > Dog = #pet{head = dog, tail = dog}.
+    > is_default(Dog#pet.head).
+    false.
     ```
 
 
 Other functions
 ---------------
 
-* `old()` and `default()` are used for simple updates:
+* `old()` and `default()` functions are used for simple updates:
 
     ```erlang
-    Dog#pet{head = atom_to_list(old()), tail = atom_to_list(old())}
-    is #pet{head = "dog", tail = "dog"}.
+    > Dog#pet{head = atom_to_list(old()), tail = atom_to_list(old())}.
+    #pet{head = "dog", tail = "dog"}.
     ```
 
     ```erlang
-    Dog#pet{head = default()}
-    is #pet{head = cat, tail = dog}.
+    > Dog#pet{head = default()}.
+    #pet{head = cat, tail = dog}.
     ```
 
 Examples
@@ -53,8 +55,7 @@ Examples
 Before:
 
 ```erlang
-put(Store, Ref, Hash)
-    when is_reference(Ref), is_integer(Hash) ->
+put(Store, Ref, Hash) ->
     #qlc_table_hash_register{hash_to_ref = H2R, ref_to_hash = R2H} = Store,
     NewR2H = gb_trees:insert(Ref, Hash, R2H),
     NewH2R = gb_trees:insert(Hash, Ref, H2R),
@@ -79,8 +80,7 @@ erase(Store, Key) ->
 After:
 
 ```erlang
-put(Store, Ref, Hash)
-    when is_reference(Ref), is_integer(Hash) ->
+put(Store, Ref, Hash) ->
     Store#qlc_table_hash_register{
         hash_to_ref = gb_trees:insert(Ref, Hash, old()),
         ref_to_hash = gb_trees:insert(Hash, Ref, old())}.
