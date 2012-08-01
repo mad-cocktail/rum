@@ -5,6 +5,7 @@
 
 
 -record(rec, {f1 = 1, f2 = 2}).
+-record(rec2, {f1 = erlang:error(empty_field), f2 = 2}).
 
 %% Return default value.
 before_example1() ->
@@ -81,6 +82,14 @@ update_with_fun() ->
     X#rec{f1 = atom_to_list(old()), f2 = atom_to_list(old())}.
 
 
+%% Parse transform inserts a default value.
+%% Other fields are not constructed, and the field constructors are ignored.
+ignore_other_fields(X) when is_default(X#rec2.f2) ->
+    true;
+ignore_other_fields(_) ->
+    false.
+
+
 -include_lib("eunit/include/eunit.hrl").
 
 -ifdef(TEST).
@@ -104,6 +113,14 @@ nested_test_() ->
 
 update_with_fun_test_() ->
     [ ?_assertEqual(update_with_fun(),  #rec{f1 = "f1x", f2 = "f2x"})
+    ].
+
+ignore_other_fields_test_() ->
+    [ ?_assert(ignore_other_fields(#rec2{f1 = undefined}))
+    , ?_assertNot(ignore_other_fields(#rec2{f1 = undefined, f2 = other}))
+    , ?_assertNot(ignore_other_fields(#rec{}))
+    , ?_assertNot(ignore_other_fields(#rec{f2 = default(#rec2.f2)}))
+    , ?_assert(ignore_other_fields(#rec2{f1 = default(#rec2.f2)}))
     ].
 
 -endif.

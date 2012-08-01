@@ -1,6 +1,7 @@
 -module(rum).
 -export([parse_transform/2]).
 
+
 oneof_function(Fs) ->
     fun(Node) ->
         Apply = fun(F, N) -> F(N) end,
@@ -9,14 +10,65 @@ oneof_function(Fs) ->
 
 
 parse_transform(Forms, _Options) ->
-    F1 = replace_record_expr_value(fun default_rec_expr_trans/3),
+    %% Extract record 
+    Records = extract_record_definitions(Forms),
+    %% RecordAndFieldNames2DefaultFieldValueOrdDict
+    RFN2DFV = orddict:from_list(record_definitions_to_pl(Records)),
+    F1 = replace_record_expr_value(default_rec_expr_trans(RFN2DFV)),
     F2 = replace_record_expr_value(fun old_rec_expr_trans/3),
-    F3 = fun is_default_trans/1,
-    F4 = fun default_trans/1,
+    F3 = is_default_trans(RFN2DFV),
+    F4 = default_trans(RFN2DFV),
     F  = oneof_function([F1, F2, F3, F4]),
     X = [postorder(F, Tree) || Tree <- Forms],
 %   io:format(user, "Before:\t~p\n\nAfter:\t~p\n", [Forms, X]),
     X.
+
+
+extract_record_definitions(Forms) ->
+    [erl_syntax:attribute_arguments(F) 
+       || F <- Forms, erl_syntax:type(F) =:= attribute, 
+          erl_syntax:atom_value(erl_syntax:attribute_name(F)) =:= record].
+
+
+
+-spec record_definitions_to_pl(Recs) -> PL when
+    Recs :: [erl_syntax:syntaxTree()],
+    PL   :: [{Key, erl_syntax:syntaxTree()}],
+    Key  :: {RecName, FieldName},
+    RecName :: atom(),
+    FieldName :: atom().
+
+record_definitions_to_pl(Recs) ->
+    [to_element(Field, RecName)
+        || [RecName, RecFields] <- Recs, Field <- erl_syntax:tuple_elements(RecFields)].
+
+
+-spec to_element(Field, RecName) -> Elem when
+    Field :: erl_syntax:syntaxTree(),
+    RecName :: erl_syntax:syntaxTree(),
+    Elem :: {Key, FieldValue},
+    FieldValue :: erl_syntax:syntaxTree(),
+    Key :: {RecNameAtom, FieldNameAtom},
+    RecNameAtom :: atom(),
+    FieldNameAtom :: atom().
+    
+to_element(Field, RecName) ->
+    FieldName     = erl_syntax:record_field_name(Field),
+    FieldValue    = erl_syntax:record_field_value(Field),
+    {to_key(FieldName, RecName), FieldValue}.
+
+
+-spec to_key(FieldName, RecName) -> Key when
+    FieldName :: erl_syntax:syntaxTree(),
+    RecName :: erl_syntax:syntaxTree(),
+    Key :: {RecNameAtom, FieldNameAtom},
+    RecNameAtom :: atom(),
+    FieldNameAtom :: atom().
+
+to_key(FieldName, RecName) ->
+    FieldNameAtom = erl_syntax:atom_value(FieldName),
+    RecNameAtom   = erl_syntax:atom_value(RecName),
+    {RecNameAtom, FieldNameAtom}.
 
 
 postorder(F, Form) ->
@@ -51,17 +103,19 @@ replace_record_expr_value(TransFun) ->
 
 %% `Argument#Type{Field}', where Field is `Name = Value'.
 %% see example 3.
-default_rec_expr_trans(_Argument, Type, Field) ->
-    Value = erl_syntax:record_field_value(Field),
-    Name  = erl_syntax:record_field_name(Field),
-    F = fun(Node) ->
-        IsFun = is_local_function(Node, default, 0),
-        if IsFun -> record_default_value(Type, Name);
-           true  -> Node
-            end
-        end,
-    NewValue = postorder(F, Value),
-    update_field(Field, NewValue).
+default_rec_expr_trans(RFN2DFV) ->
+    fun(_Argument, Type, Field) ->
+        Value = erl_syntax:record_field_value(Field),
+        Name  = erl_syntax:record_field_name(Field),
+        F = fun(Node) ->
+            IsFun = is_local_function(Node, default, 0),
+            if IsFun -> record_default_value(RFN2DFV, Type, Name);
+               true  -> Node
+                end
+            end,
+        NewValue = postorder(F, Value),
+        update_field(Field, NewValue)
+        end.
 
 
 %% see example 4.
@@ -98,18 +152,16 @@ old_rec_expr_trans(Argument, Type, Field) ->
 
 
 %% see example 1.
--spec record_default_value(Type, Name) -> Value when
+-spec record_default_value(RFN2DFV, Type, Name) -> Value when
+    RFN2DFV :: orddict:ordict(),
     Type :: erl_syntax:syntaxTree(),
     Name :: erl_syntax:syntaxTree(),
     Value :: erl_syntax:syntaxTree().
 
-record_default_value(Type, Name) ->
-    Function = erl_syntax:atom(element),
-    Con = erl_syntax:record_expr(none, Type, []),
-    %% #Type.Name
-    Index = erl_syntax:record_index_expr(Type, Name),
-    Arguments = [Index, Con],
-    erl_syntax:application(none, Function, Arguments).
+record_default_value(RFN2DFV, Type, Name) ->
+    Value = orddict:fetch(to_key(Name, Type), RFN2DFV),
+    [erlang:error(unknown_record_field_name) || Value =:= undefined],
+    Value.
 
 
 %% Return `NewField', where its value is replaced by `NewValue'.
@@ -139,21 +191,23 @@ is_local_function(Node, FunName, FunArity) ->
 always(_) -> true.
 
 
-is_default_trans(Node) ->
-    IsFun = is_local_function(Node, is_default, 1),
-    if IsFun -> do_is_default_trans(Node);
-        true -> Node
-         end.
+is_default_trans(RFN2DFV) ->
+    fun(Node) ->
+        IsFun = is_local_function(Node, is_default, 1),
+        if IsFun -> do_is_default_trans(RFN2DFV, Node);
+            true -> Node
+             end
+        end.
 
 
 %% `is_default(Argument#Type.Field)'
-do_is_default_trans(Node) ->
+do_is_default_trans(RFN2DFV, Node) ->
     [RecAccess] = erl_syntax:application_arguments(Node),
     case erl_syntax:type(RecAccess) of
     record_access ->
             Name     = erl_syntax:record_access_field(RecAccess),
             Type     = erl_syntax:record_access_type(RecAccess),
-            DefValue = record_default_value(Type, Name),
+            DefValue = record_default_value(RFN2DFV, Type, Name),
             EqOp     = erl_syntax:operator('=:='),
             IsEqual = erl_syntax:infix_expr(RecAccess, EqOp, DefValue),
             erl_syntax:parentheses(IsEqual);
@@ -163,20 +217,22 @@ do_is_default_trans(Node) ->
         
 
 %% `default(#Type.Field)'
-default_trans(Node) ->
-    IsFun = is_local_function(Node, default, 1),
-    if IsFun -> do_default_trans(Node);
-        true -> Node
-         end.
+default_trans(RFN2DFV) ->
+    fun(Node) ->
+        IsFun = is_local_function(Node, default, 1),
+        if IsFun -> do_default_trans(RFN2DFV, Node);
+            true -> Node
+             end
+        end.
 
 
-do_default_trans(Node) ->
+do_default_trans(RFN2DFV, Node) ->
     [RecIndex] = erl_syntax:application_arguments(Node),
     case erl_syntax:type(RecIndex) of 
     record_index_expr ->
         Name     = erl_syntax:record_index_expr_field(RecIndex),
         Type     = erl_syntax:record_index_expr_type(RecIndex),
-        record_default_value(Type, Name);
+        record_default_value(RFN2DFV, Type, Name);
     _OtherType ->
         Node
     end.
