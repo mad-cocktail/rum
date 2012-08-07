@@ -20,7 +20,7 @@ parse_transform(Forms, _Options) ->
     F4 = default_trans(RFN2DFV),
     F  = oneof_function([F1, F2, F3, F4]),
     X = [postorder(F, Tree) || Tree <- Forms],
-%   io:format(user, "Before:\t~p\n\nAfter:\t~p\n", [Forms, X]),
+    io:format(user, "Before:\t~p\n\nAfter:\t~p\n", [Forms, X]),
     X.
 
 
