@@ -49,6 +49,14 @@ Other functions
     #pet{head = cat, tail = dog}.
     ```
 
+* `with()` is a variant of `old()` for nested updates:
+
+    ```erlang
+    > Dog#pet{head = with(Head, atom_to_list(Head)), 
+    >         tail = with(Tail, atom_to_list(Tail))}.
+    #pet{head = "dog", tail = "dog"}.
+    ```
+
 Examples
 --------
 

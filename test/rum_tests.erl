@@ -90,6 +90,12 @@ ignore_other_fields(_) ->
     false.
 
 
+recbind_before(X) ->
+    X#rec{f1 = X#rec.f1#rec2{f1 = 2}}.
+
+recbind(X) ->
+    X#rec{f1 = with(Y, Y#rec2{f1 = 2})}.
+
 -include_lib("eunit/include/eunit.hrl").
 
 -ifdef(TEST).
@@ -104,6 +110,10 @@ compare_test_() ->
     , ?_assertEqual(before_example6(X), after_example6(X))
     , ?_assertEqual(before_example7(X), after_example7(X))
     ].
+
+recbind_test_() ->
+    X = #rec{f1 = #rec2{f1 = 3}},
+    [ ?_assertEqual(recbind(X), #rec{f1 = #rec2{f1 = 2}})].
 
 
 nested_test_() ->

@@ -20,7 +20,7 @@ parse_transform(Forms, _Options) ->
     F4 = default_trans(RFN2DFV),
     F  = oneof_function([F1, F2, F3, F4]),
     X = [postorder(F, Tree) || Tree <- Forms],
-    io:format(user, "Before:\t~p\n\nAfter:\t~p\n", [Forms, X]),
+%   io:format(user, "Before:\t~p\n\nAfter:\t~p\n", [Forms, X]),
     X.
 
 
@@ -131,6 +131,7 @@ old_rec_expr_trans(Argument, Type, Field) ->
         F = fun(Node) ->
             IsFun0 = is_local_function(Node, old, 0),
             IsFun1 = is_local_function(Node, old, 1),
+            IsFun2 = is_local_function(Node, with, 2),
             if 
             %% Search for all matches.
             IsFun0 -> 
@@ -143,11 +144,31 @@ old_rec_expr_trans(Argument, Type, Field) ->
                 if IsWanted -> erl_syntax:record_access(Argument, Type, Name);
                    true     -> Node 
                 end;
+            IsFun2 ->
+                [BindedVar, BindedExp] = erl_syntax:application_arguments(Node),
+                AccessOldValue = erl_syntax:record_access(Argument, Type, Name),
+                BindF = replace_binded(BindedVar, AccessOldValue),
+                postorder(BindF, BindedExp);
             true   -> Node
             end
         end,
         NewValue = postorder(F, Value),
-        update_field(Field, NewValue)
+        update_field(Field, NewValue);
+    _ ->
+        Field
+    end.
+
+
+%% @doc Replace all occurrences of `BindedVar' on `BindedExp'.
+replace_binded(BindedVar, BindedExp) ->
+    variable = erl_syntax:type(BindedVar),
+    VarName = erl_syntax:variable_name(BindedVar),
+    fun(Node) ->
+        IsVar = erl_syntax:type(Node) =:= variable
+        andalso erl_syntax:variable_name(BindedVar) =:= VarName,
+        if IsVar -> BindedExp;
+           true -> Node
+        end
     end.
 
 
