@@ -96,6 +96,22 @@ recbind_before(X) ->
 recbind(X) ->
     X#rec{f1 = with(Y, Y#rec2{f1 = 2})}.
 
+-record(a, {a}).
+-record(b, {b}).
+-record(c, {c}).
+
+ab_set_before(A, X) ->
+    A#a{a = A#a.a#b{b = X}}.
+
+ab_set(A, X) ->
+    A#a{a = with(B, 
+                 B#b{b = X})}.
+
+abc_set(A, X) ->
+    A#a{a = with(B, 
+                 B#b{b = with(C, 
+                              C#c{c = X})})}.
+
 -include_lib("eunit/include/eunit.hrl").
 
 -ifdef(TEST).
@@ -110,6 +126,16 @@ compare_test_() ->
     , ?_assertEqual(before_example6(X), after_example6(X))
     , ?_assertEqual(before_example7(X), after_example7(X))
     ].
+
+ab_set_test_() ->
+    A1 = #a{a = #b{b = 1}},
+    A2 = #a{a = #b{b = 2}},
+    [ ?_assertEqual(ab_set(A1, 2), A2)].
+
+abc_set_test_() ->
+    A1 = #a{a = #b{b = #c{c = 1}}},
+    A2 = #a{a = #b{b = #c{c = 2}}},
+    [ ?_assertEqual(abc_set(A1, 2), A2)].
 
 recbind_test_() ->
     X = #rec{f1 = #rec2{f1 = 3}},

@@ -145,10 +145,10 @@ old_rec_expr_trans(Argument, Type, Field) ->
                    true     -> Node 
                 end;
             IsFun2 ->
-                [BindedVar, BindedExp] = erl_syntax:application_arguments(Node),
+                [BindedVar, BindedBody] = erl_syntax:application_arguments(Node),
                 AccessOldValue = erl_syntax:record_access(Argument, Type, Name),
                 BindF = replace_binded(BindedVar, AccessOldValue),
-                postorder(BindF, BindedExp);
+                postorder(BindF, BindedBody);
             true   -> Node
             end
         end,
@@ -165,7 +165,7 @@ replace_binded(BindedVar, BindedExp) ->
     VarName = erl_syntax:variable_name(BindedVar),
     fun(Node) ->
         IsVar = erl_syntax:type(Node) =:= variable
-        andalso erl_syntax:variable_name(BindedVar) =:= VarName,
+        andalso erl_syntax:variable_name(Node) =:= VarName,
         if IsVar -> BindedExp;
            true -> Node
         end

@@ -57,8 +57,9 @@ Other functions
     #pet{head = "dog", tail = "dog"}.
     ```
 
-Examples
---------
+
+Example 1
+---------
 
 Before:
 
@@ -107,3 +108,20 @@ erase(Store, Key) ->
     end.
 ```
 
+    
+Example 2
+---------
+
+`B` is bound to `A#a.a` and C is bound to `B#b.b` (`A#a.a#b.b`) 
+in this example:
+
+```erlang
+-record(a, {a}).
+-record(b, {b}).
+-record(c, {c}).
+
+abc_set(A, X) ->                             
+    A#a{a = with(B,                          
+                 B#b{b = with(C,             
+                              C#c{c = X})})}.
+```
