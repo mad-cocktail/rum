@@ -100,7 +100,7 @@ erase(Store, Key) ->
     {ok, {Ref, Hash}} ->
         NewStore = Store#qlc_table_hash_register{
             hash_to_ref = gb_trees:delete(Hash, old()),
-            ref_to_hash = gb_trees:delete(Ref, old()},
+            ref_to_hash = gb_trees:delete(Ref, old())},
         {ok, {NewStore, Ref, Hash}};
 
     {error, _Reason} = Error ->
