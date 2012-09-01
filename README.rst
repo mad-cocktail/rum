@@ -21,9 +21,11 @@ Guards
 
 -  ``default(RecordIndex) -> term().``
 
-   \`\`\`erlang > -record(pet, {head = cat, tail = octo}).
+.. code-block:: erlang
 
-       default(#pet.head). cat. \`\`\`
+       -record(pet, {head = cat, tail = octo}).
+       > default(#pet.head). 
+       cat. 
 
 -  ``is_default(RecordAccess) -> boolean().``
 
