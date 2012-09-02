@@ -124,3 +124,16 @@ in this example:
         A#a{a = with(B,                          
                      B#b{b = with(C,             
                                   C#c{c = X})})}.
+                                  
+This will be expanded to:
+
+.. code-block:: erlang
+
+    -record(a, {a}).
+    -record(b, {b}).
+    -record(c, {c}).
+
+    abc_set(A, X) ->                             
+        A#a{a = A#a.a                         
+         #b{b = A#a.a#b.b
+         #c{c = X}}}.
