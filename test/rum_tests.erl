@@ -112,6 +112,12 @@ abc_set(A, X) ->
                  B#b{b = with(C, 
                               C#c{c = X})})}.
 
+abc_set_before(A, X) ->       
+    A#a{a = A#a.a      
+     #b{b = A#a.a#b.b  
+     #c{c = X}}}.      
+
+
 -include_lib("eunit/include/eunit.hrl").
 
 -ifdef(TEST).
@@ -135,7 +141,8 @@ ab_set_test_() ->
 abc_set_test_() ->
     A1 = #a{a = #b{b = #c{c = 1}}},
     A2 = #a{a = #b{b = #c{c = 2}}},
-    [ ?_assertEqual(abc_set(A1, 2), A2)].
+    [ ?_assertEqual(abc_set(A1, 2), A2)
+    , ?_assertEqual(abc_set_before(A1, 2), A2)].
 
 recbind_test_() ->
     X = #rec{f1 = #rec2{f1 = 3}},
